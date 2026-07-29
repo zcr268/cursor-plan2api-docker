@@ -62,16 +62,19 @@ jobs:
 
       - name: Patch Dockerfile — install Cursor CLI
         run: |
+          # Cursor CLI 自带的 Node.js 是 glibc 编译的，Alpine (musl) 无法运行
+          # 需要把基础镜像从 Alpine 换成 Debian
+          sed -i 's/node:20-alpine/node:20-bookworm-slim/g' Dockerfile
+
           cat >> Dockerfile << 'PATCH'
 
           # ── Install Cursor CLI ──────────────────────────────────────
-          RUN apk add --no-cache curl bash && \
+          RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
               curl https://cursor.com/install -fsS | bash && \
-              apk del curl && \
-              rm -rf /var/cache/apk/* /tmp/*
+              apt-get purge -y curl && apt-get autoremove -y && \
+              rm -rf /var/lib/apt/lists/*
 
-          # Cursor CLI 安装到 ~/.local/bin/agent，但 Alpine 默认 PATH 不包含此目录
-          # 需要显式加入 PATH（安装脚本不会自动配置）
+          # Cursor CLI 安装到 ~/.local/bin/agent，Debian 默认 PATH 不包含此目录
           ENV PATH="${PATH}:/root/.local/bin"
           # ────────────────────────────────────────────────────────────
           PATCH
