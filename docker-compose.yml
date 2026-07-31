@@ -1,6 +1,6 @@
 services:
   cursor-plan2api:
-    image: ghcr.io/alfons-fhl/cursor-plan2api:latest
+    image: ghcr.io/zcr268/cursor-plan2api-docker:latest
     container_name: cursor-plan2api
     ports:
       - "8787:8787"

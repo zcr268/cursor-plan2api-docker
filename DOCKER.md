@@ -52,6 +52,23 @@ environment:
 
 这种方式不需要挂载任何文件。
 
+## 非 root 运行
+
+默认情况下容器以 `root` 运行。如需以非 root 用户运行，设置 `PUID` 和 `PGID` 环境变量：
+
+```bash
+docker run -d \
+  --name cursor-plan2api \
+  -p 8787:8787 \
+  -v ~/.cursor/machine.json:/root/.cursor/machine.json:ro \
+  -e PUID=$(id -u) \
+  -e PGID=$(id -g) \
+  -e CURSOR_PLAN2API_HOST=0.0.0.0 \
+  ghcr.io/zcr268/cursor-plan2api-docker:latest
+```
+
+entrypoint 会自动创建匹配的用户并降权运行。
+
 ## 环境变量
 
 参见 [examples/config.yaml](https://github.com/alfons-fhl/Cursor-Plan2API/blob/master/examples/config.yaml) 和 [src/config.ts](https://github.com/alfons-fhl/Cursor-Plan2API/blob/master/src/config.ts)。
@@ -66,6 +83,8 @@ environment:
 | `CURSOR_PLAN2API_AGENT_POOL_SIZE` | `2` | 预热池大小 |
 | `CURSOR_PLAN2API_WARMUP_ON_START` | `0` | 启动时预热 |
 | `CURSOR_API_KEY` | — | Cursor Dashboard API Key（免文件挂载） |
+| `PUID` | `1000` | 运行时用户 UID（非 root 模式） |
+| `PGID` | `1000` | 运行时用户 GID（非 root 模式） |
 
 ## 版本标签
 
