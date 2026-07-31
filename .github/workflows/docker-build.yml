@@ -68,7 +68,7 @@ jobs:
           cat >> Dockerfile << 'PATCH'
 
           # ── Install Cursor CLI ──────────────────────────────────────
-          RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates shadow && \
+          RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates passwd && \
               curl https://cursor.com/install -fsS | bash && \
               apt-get purge -y curl && apt-get autoremove -y && \
               rm -rf /var/lib/apt/lists/*
