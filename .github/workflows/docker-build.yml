@@ -74,11 +74,11 @@ jobs:
               rm -rf /var/lib/apt/lists/*
 
           # Symlink agent to /usr/local/bin so it's in PATH for any user
-          # 实际二进制在 /root/.local/ 下，非 root 用户无法遍历 /root/
-          # 需要把真正可执行文件复制到公共路径（不能只做 symlink）
-          RUN AGENT_BIN="$(find /root/.local/share/cursor-agent -name cursor-agent -type f | head -1)" && \
-              cp "$AGENT_BIN" /usr/local/bin/agent && \
-              chmod a+rx /usr/local/bin/agent
+          # agent 是 Node.js 脚本，依赖安装目录下的 index.js 等文件
+          # 不能只复制二进制，要确保整个安装目录对非 root 用户可访问
+          RUN chmod -R a+rx /root/.local/ && \
+              ln -sf /root/.local/bin/agent /usr/local/bin/agent && \
+              ln -sf /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent
 
           # ── Entrypoint — support non-root runtime via PUID/PGID ─────
           COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
