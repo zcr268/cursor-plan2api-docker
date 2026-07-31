@@ -93,6 +93,11 @@ jobs:
           #!/usr/bin/env bash
           set -euo pipefail
 
+          # ── 如果已经是非 root 用户，直接执行 ────────────────────────
+          if [ "$(id -u)" -ne 0 ]; then
+            exec "$@"
+          fi
+
           # ── Resolve UID/GID ─────────────────────────────────────────
           PUID="${PUID:-1000}"
           PGID="${PGID:-1000}"
@@ -113,7 +118,7 @@ jobs:
           chown -R "$PUID:$PGID" /app /root/.cursor 2>/dev/null || true
 
           # ── Run as the target user ──────────────────────────────────
-          exec su -s /bin/sh "$USER_NAME" -c 'exec "$@"' -- "$@"
+          exec su -s /bin/sh "$USER_NAME" -c "exec $*"
           ENTRYPOINT
 
           chmod +x docker-entrypoint.sh
