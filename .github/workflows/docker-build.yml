@@ -60,24 +60,63 @@ jobs:
           repository: ${{ env.SOURCE_REPO }}
           ref: ${{ inputs.source_ref || 'master' }}
 
-      - name: Patch Dockerfile — install Cursor CLI
+      - name: Patch Dockerfile — install Cursor CLI & entrypoint
         run: |
           # Cursor CLI 自带的 Node.js 是 glibc 编译的，Alpine (musl) 无法运行
-          # 需要把基础镜像从 Alpine 换成 Debian
           sed -i 's/node:20-alpine/node:20-bookworm-slim/g' Dockerfile
 
           cat >> Dockerfile << 'PATCH'
 
           # ── Install Cursor CLI ──────────────────────────────────────
-          RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && \
+          RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates shadow && \
               curl https://cursor.com/install -fsS | bash && \
               apt-get purge -y curl && apt-get autoremove -y && \
               rm -rf /var/lib/apt/lists/*
 
-          # Cursor CLI 安装到 ~/.local/bin/agent，Debian 默认 PATH 不包含此目录
-          ENV PATH="${PATH}:/root/.local/bin"
+          # Symlink agent to /usr/local/bin so it's in PATH for any user
+          RUN ln -sf /root/.local/bin/agent /usr/local/bin/agent && \
+              ln -sf /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent
+
+          # ── Entrypoint — support non-root runtime via PUID/PGID ─────
+          COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+          RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+          ENV PUID=1000 PGID=1000
+
+          ENTRYPOINT ["docker-entrypoint.sh"]
+          CMD ["node", "dist/cli.js", "run"]
           # ────────────────────────────────────────────────────────────
           PATCH
+
+          # Create the entrypoint script
+          cat > docker-entrypoint.sh << 'ENTRYPOINT'
+          #!/usr/bin/env bash
+          set -euo pipefail
+
+          # ── Resolve UID/GID ─────────────────────────────────────────
+          PUID="${PUID:-1000}"
+          PGID="${PGID:-1000}"
+
+          # ── Create group if needed ──────────────────────────────────
+          if ! getent group "$PGID" >/dev/null 2>&1; then
+            groupadd -g "$PGID" cursorusr
+          fi
+          GROUP_NAME="$(getent group "$PGID" | cut -d: -f1)"
+
+          # ── Create user if needed ───────────────────────────────────
+          if ! id "$PUID" >/dev/null 2>&1; then
+            useradd -m -u "$PUID" -g "$PGID" -s /bin/bash cursorusr
+          fi
+          USER_NAME="$(id -nu "$PUID" 2>/dev/null || echo "cursorusr")"
+
+          # ── Fix permissions on working directory ────────────────────
+          chown -R "$PUID:$PGID" /app /root/.cursor 2>/dev/null || true
+
+          # ── Run as the target user ──────────────────────────────────
+          exec su -s /bin/sh "$USER_NAME" -c 'exec "$@"' -- "$@"
+          ENTRYPOINT
+
+          chmod +x docker-entrypoint.sh
 
       - name: Verify patched Dockerfile
         run: |
