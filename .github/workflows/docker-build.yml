@@ -75,8 +75,9 @@ jobs:
 
           # Symlink agent to /usr/local/bin so it's in PATH for any user
           # agent 是 Node.js 脚本，依赖安装目录下的 index.js 等文件
-          # 不能只复制二进制，要确保整个安装目录对非 root 用户可访问
-          RUN chmod -R a+rx /root/.local/ && \
+          # 需要确保 /root/ 目录可遍历，且安装目录对非 root 用户可读可执行
+          RUN chmod a+rx /root/ && \
+              chmod -R a+rx /root/.local/ && \
               ln -sf /root/.local/bin/agent /usr/local/bin/agent && \
               ln -sf /root/.local/bin/cursor-agent /usr/local/bin/cursor-agent
 
